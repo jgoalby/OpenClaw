@@ -355,7 +355,7 @@ list_machines_and_images() {
   {
     printf 'Machines\n'
     printf '========\n'
-    run_root machinectl list --all || true
+    run_root machinectl list || true
     printf '\nImages\n'
     printf '======\n'
     run_root machinectl list-images || true
