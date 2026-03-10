@@ -15,7 +15,7 @@ set_default_config() {
   : "${CLAWCTL_UBUNTU_RELEASE:=noble}"
   : "${CLAWCTL_UBUNTU_MIRROR:=http://archive.ubuntu.com/ubuntu/}"
   # Placeholder only. Override this in ~/.config/clawctl/config.env on real systems.
-  : "${CLAWCTL_DEFAULT_PASSWORD:=change-me-now}"
+  : "${CLAWCTL_DEFAULT_PASSWORD:=clawd}"
 }
 
 load_user_config() {
