@@ -141,6 +141,25 @@ ensure_local_bin_in_path() {
   fi
 }
 
+install_gum() {
+  if command -v gum >/dev/null 2>&1; then
+    return
+  fi
+
+  echo "Installing gum..."
+
+  TMP_DIR="$(mktemp -d)"
+  trap 'rm -rf "$TMP_DIR"' EXIT
+
+  curl -fsSL \
+    https://github.com/charmbracelet/gum/releases/latest/download/gum_0.14.5_linux_amd64.tar.gz \
+    -o "$TMP_DIR/gum.tar.gz"
+
+  tar -xzf "$TMP_DIR/gum.tar.gz" -C "$TMP_DIR"
+
+  install -m 755 "$TMP_DIR/gum" "$HOME/.local/bin/gum"
+}
+
 main() {
   ensure_command git git
   ensure_command curl curl
@@ -152,7 +171,7 @@ main() {
 
   if ! have_cmd gum; then
     printf 'Attempting to install missing dependency: gum\n'
-    install_packages gum || true
+    install_gum
   fi
 
   if local_source_available; then
