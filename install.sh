@@ -98,6 +98,49 @@ install_tree_from_git() {
   fi
 }
 
+detect_shell_config() {
+  case "${SHELL##*/}" in
+    bash)
+      [[ -f "$HOME/.bashrc" ]] && echo "$HOME/.bashrc" || echo "$HOME/.bash_profile"
+      ;;
+    zsh)
+      echo "$HOME/.zshrc"
+      ;;
+    fish)
+      echo "$HOME/.config/fish/config.fish"
+      ;;
+    *)
+      echo "$HOME/.profile"
+      ;;
+  esac
+}
+
+ensure_local_bin_in_path() {
+  local BIN_DIR="$HOME/.local/bin"
+
+  if echo "$PATH" | grep -q "$BIN_DIR"; then
+    return
+  fi
+
+  local CONFIG
+  CONFIG="$(detect_shell_config)"
+
+  echo
+  echo "Adding $BIN_DIR to PATH in $CONFIG"
+
+  mkdir -p "$BIN_DIR"
+
+  if ! grep -q ".local/bin" "$CONFIG" 2>/dev/null; then
+    echo '' >> "$CONFIG"
+    echo '# Added by clawctl installer' >> "$CONFIG"
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$CONFIG"
+
+		echo
+		echo "Run this to refresh your shell:"
+		echo "source $CONFIG"
+  fi
+}
+
 main() {
   ensure_command git git
   ensure_command curl curl
@@ -120,6 +163,7 @@ main() {
   fi
 
   prepare_bin_link
+  ensure_local_bin_in_path
 
   cat <<EOF
 Installed ${PROJECT_NAME} to:
