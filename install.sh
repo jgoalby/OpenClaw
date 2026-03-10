@@ -181,7 +181,7 @@ main() {
   fi
 
   if ! have_cmd gum; then
-    printf 'Attempting to install missing dependency: gummy\n'
+    printf 'Attempting to install missing dependency: gum\n'
     install_gum
   fi
 
