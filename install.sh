@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_NAME="clawctl"
-SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$PWD}")" && pwd)"
 INSTALL_ROOT="${CLAWCTL_INSTALL_ROOT:-${HOME}/.local/share/${PROJECT_NAME}}"
 BIN_DIR="${CLAWCTL_BIN_DIR:-${HOME}/.local/bin}"
 BIN_LINK="${CLAWCTL_BIN_LINK:-${BIN_DIR}/${PROJECT_NAME}}"
