@@ -88,13 +88,13 @@ install_tree_from_git() {
     printf 'Updating existing install from %s (%s)\n' "$CLAWCTL_REPO_URL" "$CLAWCTL_REF"
     git -C "$INSTALL_ROOT" remote set-url origin "$CLAWCTL_REPO_URL"
     git -C "$INSTALL_ROOT" fetch --depth 1 origin "$CLAWCTL_REF"
-    git -C "$INSTALL_ROOT" checkout --force FETCH_HEAD
+    git -C "$INSTALL_ROOT" checkout -B clawctl-install FETCH_HEAD
   else
     rm -rf "$INSTALL_ROOT"
     printf 'Cloning %s into %s\n' "$CLAWCTL_REPO_URL" "$INSTALL_ROOT"
     git clone "$CLAWCTL_REPO_URL" "$INSTALL_ROOT"
     git -C "$INSTALL_ROOT" fetch --depth 1 origin "$CLAWCTL_REF"
-    git -C "$INSTALL_ROOT" checkout --force FETCH_HEAD
+    git -C "$INSTALL_ROOT" checkout -B clawctl-install FETCH_HEAD
   fi
 }
 
