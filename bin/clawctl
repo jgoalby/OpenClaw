@@ -1,0 +1,393 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=../lib/common.sh
+source "${PROJECT_ROOT}/lib/common.sh"
+# shellcheck source=../lib/ui.sh
+source "${PROJECT_ROOT}/lib/ui.sh"
+# shellcheck source=../lib/system.sh
+source "${PROJECT_ROOT}/lib/system.sh"
+
+load_user_config
+
+INSTALL_MODE="prompt"
+
+print_help() {
+  local help_text
+
+  help_text="$(cat <<EOF
+clawctl
+
+Terminal-based OpenClaw VPS and container manager.
+
+Usage:
+  clawctl [--install-deps] [--no-install] <command> [args]
+  clawctl
+
+Commands:
+  help
+  host-init
+  create-base
+  create <machine>
+  start <machine>
+  stop <machine>
+  shell <machine> [--root]
+  exec <machine> <command>
+  backup <machine>
+  restore <machine>
+  destroy <machine> [--force]
+  logs <machine>
+  doctor <machine>
+  openclaw-install <machine>
+  config-path [machine]
+  list
+
+Examples:
+  clawctl
+  clawctl host-init
+  clawctl create-base
+  clawctl create openclaw
+  clawctl shell openclaw --root
+  clawctl exec openclaw 'openclaw status'
+  clawctl destroy openclaw --force
+
+Defaults:
+  default user:    ${CLAWCTL_DEFAULT_USER}
+  default machine: ${CLAWCTL_DEFAULT_MACHINE}
+  base machine:    ${CLAWCTL_BASE_MACHINE}
+  ubuntu release:  ${CLAWCTL_UBUNTU_RELEASE}
+EOF
+)"
+
+  ui_page_text "$help_text"
+}
+
+run_just() {
+  local recipe="$1"
+  shift || true
+
+  local justfile="${PROJECT_ROOT}/justfile"
+
+  if ! command -v just >/dev/null 2>&1; then
+    ui_error "just is still unavailable after dependency checks."
+    exit 1
+  fi
+
+  just --justfile "$justfile" "$recipe" "$@"
+}
+
+prompt_machine_name() {
+  local initial_value="${1:-$CLAWCTL_DEFAULT_MACHINE}"
+  ui_input "Machine name" "openclaw" "$initial_value"
+}
+
+prompt_exec_command() {
+  ui_input "Command" "openclaw status" ""
+}
+
+menu_host_setup() {
+  while true; do
+    ui_header "Host setup"
+    local choice
+    choice="$(ui_choose "Choose a host action" \
+      "Initialize host" \
+      "Back")" || return 0
+
+    case "$choice" in
+      "Initialize host") run_just host-init ;;
+      "Back") return 0 ;;
+    esac
+  done
+}
+
+menu_base_container() {
+  while true; do
+    ui_header "Base container"
+    local choice
+    choice="$(ui_choose "Choose a base action" \
+      "Create base container" \
+      "Start base container" \
+      "Stop base container" \
+      "Shell into base as root" \
+      "Back")" || return 0
+
+    case "$choice" in
+      "Create base container") run_just create-base ;;
+      "Start base container") run_just start "$CLAWCTL_BASE_MACHINE" ;;
+      "Stop base container") run_just stop "$CLAWCTL_BASE_MACHINE" ;;
+      "Shell into base as root") run_just shell-root "$CLAWCTL_BASE_MACHINE" ;;
+      "Back") return 0 ;;
+    esac
+  done
+}
+
+menu_instances() {
+  while true; do
+    ui_header "Instances"
+    local choice machine cmd
+    choice="$(ui_choose "Choose an instance action" \
+      "Create instance" \
+      "Start instance" \
+      "Stop instance" \
+      "Shell as user" \
+      "Shell as root" \
+      "Exec command" \
+      "Backup instance" \
+      "Restore instance" \
+      "Destroy instance" \
+      "List machines" \
+      "Back")" || return 0
+
+    case "$choice" in
+      "Create instance")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just create "$machine"
+        ;;
+      "Start instance")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just start "$machine"
+        ;;
+      "Stop instance")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just stop "$machine"
+        ;;
+      "Shell as user")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just shell-user "$machine"
+        ;;
+      "Shell as root")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just shell-root "$machine"
+        ;;
+      "Exec command")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        cmd="$(prompt_exec_command)" || continue
+        [[ -n "$cmd" ]] || continue
+        run_just exec "$machine" "$cmd"
+        ;;
+      "Backup instance")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just backup "$machine"
+        ;;
+      "Restore instance")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just restore "$machine"
+        ;;
+      "Destroy instance")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just destroy "$machine"
+        ;;
+      "List machines")
+        run_just list
+        ;;
+      "Back")
+        return 0
+        ;;
+    esac
+  done
+}
+
+menu_openclaw() {
+  while true; do
+    ui_header "OpenClaw"
+    local choice machine
+    choice="$(ui_choose "Choose an OpenClaw action" \
+      "Install OpenClaw" \
+      "Run doctor --fix" \
+      "Show config path" \
+      "Back")" || return 0
+
+    case "$choice" in
+      "Install OpenClaw")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just openclaw-install "$machine"
+        ;;
+      "Run doctor --fix")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just doctor "$machine"
+        ;;
+      "Show config path")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just config-path "$machine"
+        ;;
+      "Back")
+        return 0
+        ;;
+    esac
+  done
+}
+
+menu_logs_status() {
+  while true; do
+    ui_header "Logs / status"
+    local choice machine
+    choice="$(ui_choose "Choose a status action" \
+      "List machines and images" \
+      "Show machine logs" \
+      "Back")" || return 0
+
+    case "$choice" in
+      "List machines and images")
+        run_just list
+        ;;
+      "Show machine logs")
+        machine="$(prompt_machine_name "$CLAWCTL_DEFAULT_MACHINE")" || continue
+        run_just logs "$machine"
+        ;;
+      "Back")
+        return 0
+        ;;
+    esac
+  done
+}
+
+interactive_menu() {
+  while true; do
+    ui_header "clawctl"
+    ui_note "Default user: ${CLAWCTL_DEFAULT_USER} | Base: ${CLAWCTL_BASE_MACHINE}"
+
+    local choice
+    choice="$(ui_choose "Choose a section" \
+      "Host setup" \
+      "Base container" \
+      "Instances" \
+      "OpenClaw" \
+      "Logs / status" \
+      "Help" \
+      "Quit")" || exit 0
+
+    case "$choice" in
+      "Host setup") menu_host_setup ;;
+      "Base container") menu_base_container ;;
+      "Instances") menu_instances ;;
+      "OpenClaw") menu_openclaw ;;
+      "Logs / status") menu_logs_status ;;
+      "Help") print_help ;;
+      "Quit") exit 0 ;;
+    esac
+  done
+}
+
+parse_global_flags() {
+  while (($# > 0)); do
+    case "$1" in
+      --install-deps)
+        INSTALL_MODE="auto"
+        shift
+        ;;
+      --no-install)
+        INSTALL_MODE="never"
+        shift
+        ;;
+      --help|-h)
+        print_help
+        exit 0
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  REMAINING_ARGS=("$@")
+}
+
+dispatch_command() {
+  local command="${1:-}"
+  shift || true
+
+  case "$command" in
+    help|"")
+      print_help
+      ;;
+    host-init)
+      run_just host-init
+      ;;
+    create-base)
+      run_just create-base
+      ;;
+    create)
+      [[ $# -ge 1 ]] || die "Usage: clawctl create <machine>"
+      run_just create "$1"
+      ;;
+    start)
+      [[ $# -ge 1 ]] || die "Usage: clawctl start <machine>"
+      run_just start "$1"
+      ;;
+    stop)
+      [[ $# -ge 1 ]] || die "Usage: clawctl stop <machine>"
+      run_just stop "$1"
+      ;;
+    shell)
+      [[ $# -ge 1 ]] || die "Usage: clawctl shell <machine> [--root]"
+      local machine="$1"
+      shift
+      if [[ "${1:-}" == "--root" ]]; then
+        run_just shell-root "$machine"
+      else
+        run_just shell-user "$machine"
+      fi
+      ;;
+    exec)
+      [[ $# -ge 2 ]] || die "Usage: clawctl exec <machine> <command>"
+      local machine="$1"
+      shift
+      run_just exec "$machine" "$*"
+      ;;
+    backup)
+      [[ $# -ge 1 ]] || die "Usage: clawctl backup <machine>"
+      run_just backup "$1"
+      ;;
+    restore)
+      [[ $# -ge 1 ]] || die "Usage: clawctl restore <machine>"
+      run_just restore "$1"
+      ;;
+    destroy)
+      [[ $# -ge 1 ]] || die "Usage: clawctl destroy <machine> [--force]"
+      local machine="$1"
+      shift
+      if [[ "${1:-}" == "--force" ]]; then
+        run_just destroy-force "$machine"
+      else
+        run_just destroy "$machine"
+      fi
+      ;;
+    logs)
+      [[ $# -ge 1 ]] || die "Usage: clawctl logs <machine>"
+      run_just logs "$1"
+      ;;
+    doctor)
+      [[ $# -ge 1 ]] || die "Usage: clawctl doctor <machine>"
+      run_just doctor "$1"
+      ;;
+    openclaw-install)
+      [[ $# -ge 1 ]] || die "Usage: clawctl openclaw-install <machine>"
+      run_just openclaw-install "$1"
+      ;;
+    list)
+      run_just list
+      ;;
+    config-path)
+      run_just config-path "${1:-$CLAWCTL_DEFAULT_MACHINE}"
+      ;;
+    *)
+      die "Unknown command: ${command}"
+      ;;
+  esac
+}
+
+main() {
+  parse_global_flags "$@"
+  ensure_runtime_dependencies "$INSTALL_MODE"
+
+  if ((${#REMAINING_ARGS[@]} == 0)); then
+    interactive_menu
+  else
+    dispatch_command "${REMAINING_ARGS[@]}"
+  fi
+}
+
+main "$@"
