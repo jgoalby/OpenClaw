@@ -146,18 +146,29 @@ install_gum() {
     return
   fi
 
-  echo "Installing gum..."
+  local version="0.17.0"
+  local arch
 
-  TMP_DIR="$(mktemp -d)"
-  trap 'rm -rf "$TMP_DIR"' EXIT
+  case "$(uname -m)" in
+    x86_64) arch="x86_64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *)
+      echo "Unsupported architecture: $(uname -m)" >&2
+      return 1
+      ;;
+  esac
+
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' EXIT
 
   curl -fsSL \
-    https://github.com/charmbracelet/gum/releases/latest/download/gum_0.14.5_linux_amd64.tar.gz \
-    -o "$TMP_DIR/gum.tar.gz"
+    "https://github.com/charmbracelet/gum/releases/download/v${version}/gum_${version}_Linux_${arch}.tar.gz" \
+    -o "$tmp_dir/gum.tar.gz"
 
-  tar -xzf "$TMP_DIR/gum.tar.gz" -C "$TMP_DIR"
-
-  install -m 755 "$TMP_DIR/gum" "$HOME/.local/bin/gum"
+  tar -xzf "$tmp_dir/gum.tar.gz" -C "$tmp_dir"
+  mkdir -p "$HOME/.local/bin"
+  install -m 755 "$tmp_dir/gum" "$HOME/.local/bin/gum"
 }
 
 main() {
