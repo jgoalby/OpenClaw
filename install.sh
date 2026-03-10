@@ -146,7 +146,7 @@ install_gum() {
     return
   fi
 
-	run_root snap install gum
+  run_root snap install gum
 }
 
 main() {
@@ -159,7 +159,7 @@ main() {
   fi
 
   if ! have_cmd gum; then
-    printf 'Attempting to install missing dependency: gum\n'
+    printf 'Attempting to install missing dependency: gummy\n'
     install_gum
   fi
 
