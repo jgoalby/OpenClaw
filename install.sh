@@ -146,6 +146,8 @@ install_gum() {
     return
   fi
 
+  echo "Installing gum..."
+
   local version="0.17.0"
   local arch
 
@@ -158,17 +160,22 @@ install_gum() {
       ;;
   esac
 
-  local tmp_dir
-  tmp_dir="$(mktemp -d)"
-  trap 'rm -rf "$tmp_dir"' EXIT
+  local TMP_DIR
+  TMP_DIR="$(mktemp -d)"
+  trap 'rm -rf "$TMP_DIR"' EXIT
 
   curl -fsSL \
     "https://github.com/charmbracelet/gum/releases/download/v${version}/gum_${version}_Linux_${arch}.tar.gz" \
-    -o "$tmp_dir/gum.tar.gz"
+    -o "$TMP_DIR/gum.tar.gz"
 
-  tar -xzf "$tmp_dir/gum.tar.gz" -C "$tmp_dir"
+  tar -xzf "$TMP_DIR/gum.tar.gz" -C "$TMP_DIR"
+
   mkdir -p "$HOME/.local/bin"
-  install -m 755 "$tmp_dir/gum" "$HOME/.local/bin/gum"
+
+  local GUM_BIN
+  GUM_BIN="$(find "$TMP_DIR" -name gum -type f | head -n1)"
+
+  install -m 755 "$GUM_BIN" "$HOME/.local/bin/gum"
 }
 
 main() {
